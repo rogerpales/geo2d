@@ -28,7 +28,7 @@ func main() {
 	angles, _ := t.GetAngles()
 	for i, a := range angles {
 		nextIndex := (i + 1) % len(angles)
-		desc := fmt.Sprintf("0pposite to side %v->%v", t.Vertices[i], t.Vertices[nextIndex])
+		desc := fmt.Sprintf("opposite to side %v->%v", t.Vertices[i], t.Vertices[nextIndex])
 		fmt.Printf("%s: %.2f rad ≈ %.2f°\n", desc, a, a*180/math.Pi)
 	}
 }
@@ -37,9 +37,9 @@ func main() {
 ```
 v1 and v2 intersect: true
 v1 and v3 intersect: false
-0pposite to side {0 0}->{2 0}: 0.79 rad ≈ 45.00°
-0pposite to side {2 0}->{2 2}: 0.79 rad ≈ 45.00°
-0pposite to side {2 2}->{0 0}: 1.57 rad ≈ 90.00°
+opposite to side {0 0}->{2 0}: 0.79 rad ≈ 45.00°
+opposite to side {2 0}->{2 2}: 0.79 rad ≈ 45.00°
+opposite to side {2 2}->{0 0}: 1.57 rad ≈ 90.00°
 ```
 
 ### Some types

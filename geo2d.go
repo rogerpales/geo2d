@@ -6,27 +6,12 @@ import (
 )
 
 var errLineIntersect = errors.New("lines do not intersect")
-var errPolygonMinVex = errors.New("polygon has a minimum of 3 vertices")
+var errPolygonMinVex = errors.New("polygon has a minimum of 3 (different) vertices")
+var errTriangleNuVex = errors.New("triangle must have exactly 3 (different) vertices")
 
 // Point reprsents a 2D point
 type Point struct {
 	X, Y float64
-}
-
-// Vector represents a 2D vector
-type Vector struct {
-	P1, P2 Point
-}
-
-// Line represents a 2D line
-type Line struct {
-	Slope float64
-	Yint  float64
-}
-
-// Polygon represents a 2D polygon
-type Polygon struct {
-	Vertices []Point
 }
 
 // Coord returns point coordinates x, y
@@ -43,63 +28,9 @@ func (p *Point) Rotate(center Point, angleRad float64) {
 	p.Y = y
 }
 
-// Triangle represents a triangle polygon
-type Triangle struct {
-	Vertices [3]Point
-}
-
-// NewTriangle returns a triangle
-func NewTriangle(v1, v2, v3 Point) Triangle {
-	return Triangle{Vertices: [3]Point{v1, v2, v3}}
-}
-
-// GetAngles returns the 3 angles ordered as follows:
-//		result[0] is the angle opposite to side from t.Vertices[0] to t.Vertices[1]
-//		result[1] is the angle opposite to side from t.Vertices[1] to t.Vertices[2]
-// 		result[2] is the angle opposite to side from t.Vertices[2] to t.Vertices[0]
-func (t Triangle) GetAngles() (angles [3]float64, err error) {
-	for i, v := range t.Vertices {
-		for i2, v2 := range t.Vertices {
-			if i == i2 {
-				continue
-			}
-			if v == v2 {
-				err = errPolygonMinVex
-				return
-			}
-		}
-	}
-
-	a := Vector{t.Vertices[0], t.Vertices[1]}.Magnitude()
-	b := Vector{t.Vertices[1], t.Vertices[2]}.Magnitude()
-	c := Vector{t.Vertices[2], t.Vertices[0]}.Magnitude()
-
-	angles[0] = math.Acos((math.Pow(b, 2) + math.Pow(c, 2) - math.Pow(a, 2)) / (2 * b * c))
-	angles[1] = math.Acos((math.Pow(a, 2) + math.Pow(c, 2) - math.Pow(b, 2)) / (2 * a * c))
-	angles[2] = math.Acos((math.Pow(a, 2) + math.Pow(b, 2) - math.Pow(c, 2)) / (2 * a * b))
-	return
-}
-
-// NewLine returns the line intersecting points a, b
-func NewLine(a, b Point) Line {
-	slope := (b.Y - a.Y) / (b.X - a.X)
-	yAtXo := a.Y - slope*a.X
-	return Line{slope, yAtXo}
-}
-
-// GetY returns y value on line (l) given x
-func (l Line) GetY(x float64) float64 {
-	return l.Slope*x + l.Yint
-}
-
-// Intersection returns the intersection Point of line (l) with another line (l2)
-func (l Line) Intersection(l2 Line) (Point, error) {
-	if l.Slope == l2.Slope {
-		return Point{}, errLineIntersect
-	}
-	x := (l2.Yint - l.Yint) / (l.Slope - l2.Slope)
-	y := l.GetY(x)
-	return Point{x, y}, nil
+// Vector represents a 2D vector
+type Vector struct {
+	P1, P2 Point
 }
 
 // Intersect returns wether or not two given vectors intersect
@@ -129,6 +60,61 @@ func (v Vector) Magnitude() float64 {
 	deltaY := v.P2.Y - v.P1.Y
 
 	return math.Sqrt(deltaX*deltaX + deltaY*deltaY)
+}
+
+// Path represents a 2D path (connected points)
+type Path struct {
+	Vertices []Point
+}
+
+// GetVertices returns a slice of points
+func (p Path) GetVertices() (vs []Point) {
+	return p.Vertices
+}
+
+// GetSides returns a slice of Vector (polygon sides)
+func (p Path) GetSides() (sides []Vector) {
+	for i, v := range p.Vertices {
+		nextIndex := i + 1
+		if nextIndex == len(p.Vertices) {
+			continue
+		}
+		sides = append(sides, Vector{v, p.Vertices[nextIndex]})
+	}
+	return
+}
+
+// Line represents a 2D line
+type Line struct {
+	Slope float64
+	Yint  float64
+}
+
+// NewLine returns the line intersecting points a, b
+func NewLine(a, b Point) Line {
+	slope := (b.Y - a.Y) / (b.X - a.X)
+	yAtXo := a.Y - slope*a.X
+	return Line{slope, yAtXo}
+}
+
+// GetY returns y value on line (l) given x
+func (l Line) GetY(x float64) float64 {
+	return l.Slope*x + l.Yint
+}
+
+// Intersection returns the intersection Point of line (l) with another line (l2)
+func (l Line) Intersection(l2 Line) (Point, error) {
+	if l.Slope == l2.Slope {
+		return Point{}, errLineIntersect
+	}
+	x := (l2.Yint - l.Yint) / (l.Slope - l2.Slope)
+	y := l.GetY(x)
+	return Point{x, y}, nil
+}
+
+// Polygon represents a 2D polygon
+type Polygon struct {
+	Path
 }
 
 // NewRegularPolygon returns a new polygon with vNum number of
@@ -180,9 +166,80 @@ func (p *Polygon) Rotate(center Point, angleRad float64) {
 	}
 }
 
-// LoHiX returns lowest and highest X axis values
-func (p Polygon) LoHiX() (lo float64, hi float64) {
+// GetSides returns a slice of Vector (polygon sides)
+func (p Polygon) GetSides() (sides []Vector) {
 	for i, v := range p.Vertices {
+		nextIndex := (i + 1) % len(p.Vertices)
+		sides = append(sides, Vector{v, p.Vertices[nextIndex]})
+	}
+	return
+}
+
+// Triangle represents a triangle polygon
+type Triangle struct {
+	Polygon
+}
+
+// NewTriangle returns a triangle
+func NewTriangle(v1, v2, v3 Point) (t Triangle) {
+	t.Vertices = []Point{v1, v2, v3}
+	return t
+}
+
+// GetAngles returns the 3 angles ordered as follows:
+//		result[0] is the angle opposite to side from t.Vertices[0] to t.Vertices[1]
+//		result[1] is the angle opposite to side from t.Vertices[1] to t.Vertices[2]
+// 		result[2] is the angle opposite to side from t.Vertices[2] to t.Vertices[0]
+func (t Triangle) GetAngles() (angles [3]float64, err error) {
+	if len(t.Vertices) != 3 {
+		err = errTriangleNuVex
+		return
+	}
+	for i, v := range t.Vertices {
+		for i2, v2 := range t.Vertices {
+			if i == i2 {
+				continue
+			}
+			if v == v2 {
+				err = errTriangleNuVex
+				return
+			}
+		}
+	}
+
+	a := Vector{t.Vertices[0], t.Vertices[1]}.Magnitude()
+	b := Vector{t.Vertices[1], t.Vertices[2]}.Magnitude()
+	c := Vector{t.Vertices[2], t.Vertices[0]}.Magnitude()
+
+	angles[0] = math.Acos((math.Pow(b, 2) + math.Pow(c, 2) - math.Pow(a, 2)) / (2 * b * c))
+	angles[1] = math.Acos((math.Pow(a, 2) + math.Pow(c, 2) - math.Pow(b, 2)) / (2 * a * c))
+	angles[2] = math.Acos((math.Pow(a, 2) + math.Pow(b, 2) - math.Pow(c, 2)) / (2 * a * b))
+	return
+}
+
+// Figure interface implements GetSides and GetVertices
+type Figure interface {
+	GetSides() []Vector
+	GetVertices() []Point
+}
+
+// Intersect returns wether or not at least one side of two
+// given figures intersect
+func Intersect(f1, f2 Figure) bool {
+	f2sides := f2.GetSides()
+	for _, s1 := range f1.GetSides() {
+		for _, s2 := range f2sides {
+			if s1.Intersect(s2) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// LoHiX returns lowest and highest X axis values
+func LoHiX(f Figure) (lo float64, hi float64) {
+	for i, v := range f.GetVertices() {
 		if i == 0 {
 			lo = v.X
 			hi = v.X
@@ -199,8 +256,8 @@ func (p Polygon) LoHiX() (lo float64, hi float64) {
 }
 
 // LoHiY returns lowest and highest Y axis values
-func (p Polygon) LoHiY() (lo float64, hi float64) {
-	for i, v := range p.Vertices {
+func LoHiY(f Figure) (lo float64, hi float64) {
+	for i, v := range f.GetVertices() {
 		if i == 0 {
 			lo = v.Y
 			hi = v.Y
@@ -214,27 +271,4 @@ func (p Polygon) LoHiY() (lo float64, hi float64) {
 		}
 	}
 	return
-}
-
-// GetSides returns a slice of Vector (polygon sides)
-func (p Polygon) GetSides() (sides []Vector) {
-	for i, v := range p.Vertices {
-		nextIndex := (i + 1) % len(p.Vertices)
-		sides = append(sides, Vector{v, p.Vertices[nextIndex]})
-	}
-	return
-}
-
-// Intersect returns wether or not at least one side of two
-// given polygons intersect
-func (p Polygon) Intersect(p2 Polygon) bool {
-	p2sides := p2.GetSides()
-	for _, s1 := range p.GetSides() {
-		for _, s2 := range p2sides {
-			if s1.Intersect(s2) {
-				return true
-			}
-		}
-	}
-	return false
 }
