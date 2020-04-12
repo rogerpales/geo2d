@@ -13,11 +13,11 @@ import(
 )
 
 func main() {
-	p1 := Point{0.0, 0.0}
-	p2 := Point{2.0, 0.0}
-	p3 := Point{2.0, 2.0}
+	p1 := geo.Point{0.0, 0.0}
+	p2 := geo.Point{2.0, 0.0}
+	p3 := geo.Point{2.0, 2.0}
 
-	t := NewTriangle(p1, p2, p3)
+	t := geo.NewTriangle(p1, p2, p3)
 
 	angles, _ := t.GetAngles()
 	for _, a := range angles {
