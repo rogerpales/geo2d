@@ -2,11 +2,9 @@ package geo2d
 
 import (
 	"errors"
-	"fmt"
 	"math"
 )
 
-var errTrinagleValid = errors.New("triangle polygon must have 3 vertices")
 var errLineIntersect = errors.New("lines do not intersect")
 var errPolygonMinVex = errors.New("polygon has a minimum of 3 vertices")
 
@@ -66,9 +64,7 @@ func (t Triangle) GetAngles() (angles [3]float64, err error) {
 				continue
 			}
 			if v == v2 {
-				fmt.Println(v)
-				fmt.Println(v2)
-				err = errTrinagleValid
+				err = errPolygonMinVex
 				return
 			}
 		}
