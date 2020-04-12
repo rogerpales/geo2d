@@ -179,3 +179,62 @@ func (p *Polygon) Rotate(center Point, angleRad float64) {
 		v.Rotate(center, angleRad)
 	}
 }
+
+// LoHiX returns lowest and highest X axis values
+func (p Polygon) LoHiX() (lo float64, hi float64) {
+	for i, v := range p.Vertices {
+		if i == 0 {
+			lo = v.X
+			hi = v.X
+			continue
+		}
+		if v.Y < lo {
+			lo = v.X
+		}
+		if v.Y > hi {
+			hi = v.X
+		}
+	}
+	return
+}
+
+// LoHiY returns lowest and highest Y axis values
+func (p Polygon) LoHiY() (lo float64, hi float64) {
+	for i, v := range p.Vertices {
+		if i == 0 {
+			lo = v.Y
+			hi = v.Y
+			continue
+		}
+		if v.Y < lo {
+			lo = v.Y
+		}
+		if v.Y > hi {
+			hi = v.Y
+		}
+	}
+	return
+}
+
+// GetSides returns a slice of Vector (polygon sides)
+func (p Polygon) GetSides() (sides []Vector) {
+	for i, v := range p.Vertices {
+		nextIndex := (i + 1) % len(p.Vertices)
+		sides = append(sides, Vector{v, p.Vertices[nextIndex]})
+	}
+	return
+}
+
+// Intersect returns wether or not at least one side of two
+// given polygons intersect
+func (p Polygon) Intersect(p2 Polygon) bool {
+	p2sides := p2.GetSides()
+	for _, s1 := range p.GetSides() {
+		for _, s2 := range p2sides {
+			if s1.Intersect(s2) {
+				return true
+			}
+		}
+	}
+	return false
+}
