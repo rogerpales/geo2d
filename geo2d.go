@@ -6,6 +6,10 @@ import (
 	"math"
 )
 
+var errTrinagleValid = errors.New("triangle polygon must have 3 vertices")
+var errLineIntersect = errors.New("lines do not intersect")
+var errPolygonMinVex = errors.New("polygon has a minimum of 3 vertices")
+
 // Point reprsents a 2D point
 type Point struct {
 	X, Y float64
@@ -51,8 +55,6 @@ func NewTriangle(v1, v2, v3 Point) Triangle {
 	return Triangle{Vertices: [3]Point{v1, v2, v3}}
 }
 
-var errTrinagleValid = errors.New("Triangle polygon must have 3 vertices")
-
 // GetAngles returns the 3 angles ordered as follows:
 //		result[0] is the angle opposite to side from t.Vertices[0] to t.Vertices[1]
 //		result[1] is the angle opposite to side from t.Vertices[1] to t.Vertices[2]
@@ -97,7 +99,7 @@ func (l Line) GetY(x float64) float64 {
 // Intersection returns the intersection Point of line (l) with another line (l2)
 func (l Line) Intersection(l2 Line) (Point, error) {
 	if l.Slope == l2.Slope {
-		return Point{}, errors.New("The lines do not intersect")
+		return Point{}, errLineIntersect
 	}
 	x := (l2.Yint - l.Yint) / (l.Slope - l2.Slope)
 	y := l.GetY(x)
@@ -135,27 +137,31 @@ func (v Vector) Magnitude() float64 {
 
 // NewRegularPolygon returns a new polygon with vNum number of
 // vertices and with given vertex and center points
-func NewRegularPolygon(vertex, center Point, vNum int) (p Polygon, err error) {
+func NewRegularPolygon(center, vertex Point, vNum int) (p Polygon, err error) {
 	raidusVect := Vector{vertex, center}
 	radius := raidusVect.Magnitude()
 
-	p, err = newRegularPolygonWithCenter(center, radius, vNum)
+	p, err = NewRegularPolygonWithRadius(center, radius, vNum)
 	if err != nil {
 		return
 	}
 
-	offsetVect := Vector{p.Vertices[0], vertex}
-	for i := range p.Vertices {
-		p.Vertices[i].X = p.Vertices[i].X + (offsetVect.P1.X - offsetVect.P2.X)
-		p.Vertices[i].Y = p.Vertices[i].Y + (offsetVect.P1.Y - offsetVect.P2.Y)
+	t := NewTriangle(center, p.Vertices[0], vertex)
+	var angles [3]float64
+	angles, err = t.GetAngles()
+	if err == nil {
+		p.Rotate(center, angles[0])
+		// otherwise vertex index 0 is already given vertex
 	}
 
 	return
 }
 
-func newRegularPolygonWithCenter(center Point, radius float64, vNum int) (p Polygon, err error) {
+// NewRegularPolygonWithRadius returns a new polygon with vNum
+// number of vertices and given center point
+func NewRegularPolygonWithRadius(center Point, radius float64, vNum int) (p Polygon, err error) {
 	if vNum < 3 {
-		err = errors.New("Polygon has a minimum of 3 vertices")
+		err = errPolygonMinVex
 		return
 	}
 
