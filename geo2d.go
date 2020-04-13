@@ -21,21 +21,45 @@ func (p Point) Coord() (x, y float64) {
 
 // Rotate point a given angle from given center
 func (p *Point) Rotate(center Point, angleRad float64) {
+	v := NewVector(-center.X, -center.Y)
+	p.Translate(v)
 	x := p.X*math.Cos(angleRad) - p.Y*math.Sin(angleRad)
-	y := p.Y*math.Cos(angleRad) - p.X*math.Sin(angleRad)
-
-	p.X = x
-	p.Y = y
+	y := p.Y*math.Cos(angleRad) - p.Y*math.Sin(angleRad)
+	p.X, p.Y = x, y
+	v.X, v.Y = v.X*-1, v.Y*-1
+	p.Translate(v)
 }
 
-// Vector represents a 2D vector
+// Translate point a given Segment
+func (p *Point) Translate(v Vector) {
+	p.X += v.X
+	p.Y += v.Y
+}
+
+// Vector reprsents a 2D point
 type Vector struct {
+	X, Y float64
+}
+
+// NewVector returns a new Segment from origin (P1 0,0) to
+// given coord x and y (P2 x,y)
+func NewVector(x, y float64) Vector {
+	return Vector{X: x, Y: y}
+}
+
+// Magnitude is the distance between the two ends of a Segment (v)
+func (v Vector) Magnitude() float64 {
+	return math.Sqrt(v.X*v.X + v.Y*v.Y)
+}
+
+// Segment represents a 2D Segment
+type Segment struct {
 	P1, P2 Point
 }
 
-// Intersect returns wether or not two given vectors intersect
-func (v Vector) Intersect(u Vector) bool {
-	vl := NewLine(v.P1, v.P2)
+// Intersect returns wether or not two given Segments intersect
+func (s Segment) Intersect(u Segment) bool {
+	vl := NewLine(s.P1, s.P2)
 	ul := NewLine(u.P1, u.P2)
 
 	iP, err := vl.Intersection(ul)
@@ -43,23 +67,22 @@ func (v Vector) Intersect(u Vector) bool {
 		return false
 	}
 
-	return (iP.X >= v.P1.X && iP.X <= v.P2.X ||
-		iP.X >= v.P2.X && iP.X <= v.P1.X) &&
-		(iP.Y >= v.P1.Y && iP.Y <= v.P2.Y ||
-			iP.Y >= v.P2.Y && iP.Y <= v.P1.Y)
+	return (iP.X >= s.P1.X && iP.X <= s.P2.X ||
+		iP.X >= s.P2.X && iP.X <= s.P1.X) &&
+		(iP.Y >= s.P1.Y && iP.Y <= s.P2.Y ||
+			iP.Y >= s.P2.Y && iP.Y <= s.P1.Y)
 }
 
-// Length is returns vector (v) magnitude
-func (v Vector) Length() float64 {
-	return v.Magnitude()
+// Length is returns Segment (v) magnitude
+func (s Segment) Length() float64 {
+	return s.Magnitude()
 }
 
-// Magnitude is the distance between the two ends of a vector (v)
-func (v Vector) Magnitude() float64 {
-	deltaX := v.P2.X - v.P1.X
-	deltaY := v.P2.Y - v.P1.Y
-
-	return math.Sqrt(deltaX*deltaX + deltaY*deltaY)
+// Magnitude is the distance between the two ends of a Segment (v)
+func (s Segment) Magnitude() float64 {
+	deltaX := s.P2.X - s.P1.X
+	deltaY := s.P2.Y - s.P1.Y
+	return Vector{X: deltaX, Y: deltaY}.Magnitude()
 }
 
 // Path represents a 2D path (connected points)
@@ -72,14 +95,22 @@ func (p Path) GetVertices() (vs []Point) {
 	return p.Vertices
 }
 
-// GetSides returns a slice of Vector (polygon sides)
-func (p Path) GetSides() (sides []Vector) {
+// Translate all path vertices a given vector
+func (p *Path) Translate(v Vector) {
+	for i, vx := range p.Vertices {
+		vx.Translate(v)
+		p.Vertices[i] = vx
+	}
+}
+
+// GetSides returns a slice of Segment (polygon sides)
+func (p Path) GetSides() (sides []Segment) {
 	for i, v := range p.Vertices {
 		nextIndex := i + 1
 		if nextIndex == len(p.Vertices) {
 			continue
 		}
-		sides = append(sides, Vector{v, p.Vertices[nextIndex]})
+		sides = append(sides, Segment{v, p.Vertices[nextIndex]})
 	}
 	return
 }
@@ -120,7 +151,7 @@ type Polygon struct {
 // NewRegularPolygon returns a new polygon with vNum number of
 // vertices and with given vertex and center points
 func NewRegularPolygon(center, vertex Point, vNum int) (p Polygon, err error) {
-	raidusVect := Vector{vertex, center}
+	raidusVect := Segment{vertex, center}
 	radius := raidusVect.Magnitude()
 
 	p, err = NewRegularPolygonWithRadius(center, radius, vNum)
@@ -161,16 +192,17 @@ func NewRegularPolygonWithRadius(center Point, radius float64, vNum int) (p Poly
 
 // Rotate polygon (vertices) a given angle from given center
 func (p *Polygon) Rotate(center Point, angleRad float64) {
-	for _, v := range p.Vertices {
+	for i, v := range p.Vertices {
 		v.Rotate(center, angleRad)
+		p.Vertices[i] = v
 	}
 }
 
-// GetSides returns a slice of Vector (polygon sides)
-func (p Polygon) GetSides() (sides []Vector) {
+// GetSides returns a slice of Segment (polygon sides)
+func (p Polygon) GetSides() (sides []Segment) {
 	for i, v := range p.Vertices {
 		nextIndex := (i + 1) % len(p.Vertices)
-		sides = append(sides, Vector{v, p.Vertices[nextIndex]})
+		sides = append(sides, Segment{v, p.Vertices[nextIndex]})
 	}
 	return
 }
@@ -207,9 +239,9 @@ func (t Triangle) GetAngles() (angles [3]float64, err error) {
 		}
 	}
 
-	a := Vector{t.Vertices[0], t.Vertices[1]}.Magnitude()
-	b := Vector{t.Vertices[1], t.Vertices[2]}.Magnitude()
-	c := Vector{t.Vertices[2], t.Vertices[0]}.Magnitude()
+	a := Segment{t.Vertices[0], t.Vertices[1]}.Magnitude()
+	b := Segment{t.Vertices[1], t.Vertices[2]}.Magnitude()
+	c := Segment{t.Vertices[2], t.Vertices[0]}.Magnitude()
 
 	angles[0] = math.Acos((math.Pow(b, 2) + math.Pow(c, 2) - math.Pow(a, 2)) / (2 * b * c))
 	angles[1] = math.Acos((math.Pow(a, 2) + math.Pow(c, 2) - math.Pow(b, 2)) / (2 * a * c))
@@ -219,7 +251,7 @@ func (t Triangle) GetAngles() (angles [3]float64, err error) {
 
 // Figure interface implements GetSides and GetVertices
 type Figure interface {
-	GetSides() []Vector
+	GetSides() []Segment
 	GetVertices() []Point
 }
 
