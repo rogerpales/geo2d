@@ -20,14 +20,18 @@ func (p Point) Coord() (x, y float64) {
 }
 
 // Rotate point a given angle from given center
-func (p *Point) Rotate(center Point, angleRad float64) {
-	v := NewVector(-center.X, -center.Y)
-	p.Translate(v)
-	x := p.X*math.Cos(angleRad) - p.Y*math.Sin(angleRad)
-	y := p.Y*math.Cos(angleRad) - p.Y*math.Sin(angleRad)
-	p.X, p.Y = x, y
-	v.X, v.Y = v.X*-1, v.Y*-1
-	p.Translate(v)
+func (p *Point) Rotate(center Point, angle float64) {
+	s := math.Sin(angle)
+	c := math.Cos(angle)
+
+	p.X -= center.X
+	p.Y -= center.Y
+
+	x := p.X*c - p.Y*s
+	y := p.X*s + p.Y*c
+
+	p.X = x + center.X
+	p.Y = y + center.Y
 }
 
 // Translate point a given Segment
